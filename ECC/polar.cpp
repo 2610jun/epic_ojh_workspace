@@ -1,7 +1,7 @@
 #include "polar.h"
 #include <iostream>
 // reliability sequence
-vector<unsigned> reliability_sequence ={0, 1, 2, 4, 8, 16, 32, 3, 5, 64, 9, 6, 17, 10, 18, 128, 12, 33, 65, 20, 256, 34, 24, 36, 7, 129, 66, 512, 11, 40, 68, 130, 
+vector<int> reliability_sequence ={0, 1, 2, 4, 8, 16, 32, 3, 5, 64, 9, 6, 17, 10, 18, 128, 12, 33, 65, 20, 256, 34, 24, 36, 7, 129, 66, 512, 11, 40, 68, 130, 
     19, 13, 48, 14, 72, 257, 21, 132, 35, 258, 26, 513, 80, 37, 25, 22, 136, 260, 264, 38, 514, 96, 67, 41, 144, 28, 69, 42, 
     516, 49, 74, 272, 160, 520, 288, 528, 192, 544, 70, 44, 131, 81, 50, 73, 15, 320, 133, 52, 23, 134, 384, 76, 137, 82, 56, 27, 
     97, 39, 259, 84, 138, 145, 261, 29, 43, 98, 515, 88, 140, 30, 146, 71, 262, 265, 161, 576, 45, 100, 640, 51, 148, 46, 75, 266, 273, 517, 104, 162, 
@@ -37,6 +37,9 @@ vector<unsigned> reliability_sequence ={0, 1, 2, 4, 8, 16, 32, 3, 5, 64, 9, 6, 1
 // public member functions
 // parameterized constructor
 
+
+
+
 void print_buffer_sizes(
     const vector<vector<vector<double>>>& LLR,
     const vector<vector<vector<bool>>>& hard_decision,
@@ -62,7 +65,64 @@ void print_buffer_sizes(
 }
 
 
-POLAR::POLAR(uint32_t code_len, uint32_t info_len, const string channel_construction_method, const double design_para){
+// f function`
+void f(const vector<double> &llr_parents, vector<double> &llr_leftchild){
+    int half = llr_parents.size()/2;
+    for(int i =0; i<half; i++){
+        // 1. tanh
+        //double temp = 2.0 * atanh(tanh(alpha_left / 2.0) * tanh(alpha_right / 2.0));  // f-function
+        //result[i] = 2.0 * atanh(tanh(left[i] / 2.0) * tanh(right[i] / 2.0));  // f-function
+
+        // 2. min-sum
+        int sign = (1 - 2 * ((llr_parents[i]) * (llr_parents[i+half]) < 0));
+        llr_leftchild[i] = (std::min(abs(llr_parents[i]), abs(llr_parents[i+half])) * sign);
+
+        // test code
+        // cout<<"-------------------------------------"<<endl;
+        // cout<<"alpha_left: "<< llr_parents[i]<<"  alpha_right: "<< llr_parents[i+half]<<endl;
+        // cout<<"|alpha_left|: "<< abs(llr_parents[i])<<"  |alpha_right|: "<< abs(llr_parents[i+half])<<endl;
+        // cout<<"sign: "<<sign<<endl;
+        // cout<<"f_result: "<<llr_leftchild[i]<<endl;
+        // cout<<"-------------------------------------"<<endl;
+
+    }
+}
+
+// g function
+void g(const vector<double> &llr_parents, const vector<bool> &hard_decision_left, vector<double> &llr_rightchild){
+    int half = hard_decision_left.size();
+    for(int i=0; i<half; i++){
+        double right = llr_parents[i+half];
+        double left = llr_parents[i];
+        llr_rightchild[i] = (hard_decision_left[i]==0)? right + left : right - left;
+        // cout<<"-------------------------------------"<<endl;
+        // cout<<"right: "<< llr_parents[i+half]<<"  left: "<< llr_parents[i]<<endl;
+        // cout<<"hard decision of the left child: " << hard_decision_left[i] << endl;
+        // cout<< "right + left: "<< right + left<< endl;
+        // cout<< "right - left: "<< right - left<< endl;
+        // cout<< "llr_rightchild: "<< llr_rightchild[i] <<endl;
+        // cout<<"-------------------------------------"<<endl;
+    }
+}
+
+void hard_decision(const vector<bool>& hard_decision_left, const vector<bool>& hard_decision_right, vector<bool> &hard_decision_parents){
+    int half = hard_decision_left.size();
+    for(int i = 0; i<half; i++){
+        bool temp = hard_decision_left[i] ^ hard_decision_right[i];
+        hard_decision_parents[i] = temp;
+        hard_decision_parents[i+half] = hard_decision_right[i];
+        // cout<<"-------------------------------------"<<endl;
+        // cout<<"hard decision left: "<< hard_decision_left[i] <<"  hard decision right: "<< hard_decision_right[i]<<endl;
+        // cout<< "l ^ r: "<< (hard_decision_left[i] ^ hard_decision_right[i]) << endl;
+        // cout<< "temp: "<< temp<<endl;
+        // cout<<"hard decision left(l^r): "<< hard_decision_parents[i]<<endl;
+        // cout<<"hard decision right(r): "<< hard_decision_parents[i+half]<<endl;
+        // cout<<"-------------------------------------"<<endl;
+    }
+
+}
+
+POLAR::POLAR(int code_len, int info_len, int crc_len, const string channel_construction_method, const double design_para){
     //---------------------------------------------------------------------------------
     // polar construction
     // Input:
@@ -72,76 +132,70 @@ POLAR::POLAR(uint32_t code_len, uint32_t info_len, const string channel_construc
     // 		design_para: N/A for"Huawei approx"; erasure probability for "BP"; design SNR in dB for "GA"
     // 
     //---------------------------------------------------------------------------------
-    //m_M = code_len; // codeword length(=M) 
-    //m_N = static_cast<unsigned>(pow(2, ceil(log2(code_length)))); // mother codeword length
+    //M = code_len; // codeword length(=M) 
 
     (void) design_para;
-    m_N = code_len;
-    m_K = info_len; // information length(=k)
+    N = code_len;
+    M = code_len;       // 아직까지는.. 사실 M을 뭐 쓸일이 아직 없다
+    K = info_len;       // information length(=k)
+    // crc_len = crc_len;
+    K_pad = K + crc_len;  // effective info length including crc bits
+    F = N - K_pad;
+
 
     // Obtain channel's reliability
     // m_Q: 크기 M의 reliability sequence indices sequence가 필요하다.
     if(channel_construction_method.compare("Huawei Approx")==0){
-        m_Q = channel_polarization_huawei_approx(m_N);
+        idx_Q = rate_profiling_huawei_approx(N);
     }
-    else if (channel_construction_method.compare("Arikan")==0){
+    else if (channel_construction_method.compare("Polar 5G standard")==0){
         // reliability sequence에서 M 크기만큼 추출해오면 될거같음
-        m_Q = channel_polarization_reliability_sequence(m_N);
+        idx_Q = rate_profiling_polar_5G_Standard(N);
     }
 
     // puncture pattern.. 이건 나중에 고려해주자
     // puncture pattern
-    //m_P.reserve(m_N - m_M);
-    //m_P = vector<unsigned>(m_Q.begin(), m_Q.begin() + (m_N - m_M));
-    //sort(m_P.begin(), m_P.end()); 
+    //idx_P.reserve(idx_N - idx_M);
+    //m_P = vector<int>(idx_Q.begin(), idx_Q.begin() + (idx_N - idx_M));
+    //sort(idx_P.begin(), idx_P.end()); 
 
     // frozen bits positions
-    // m_Q에 reliability sequence가 저장되어있음
-    m_F.reserve(m_N-m_K);
-    m_F = vector<unsigned>(m_Q.begin(), m_Q.begin()+(m_N-m_K));
-    sort(m_F.begin(), m_F.end());
+    idx_F.reserve(F);
+    idx_F = vector<int>(idx_Q.begin(), idx_Q.begin()+F);
+    sort(idx_F.begin(), idx_F.end());
 
     // information bit positions
-    m_I.reserve(m_K); // 메모리 확보
-    m_I = vector<unsigned>(m_Q.end()-m_K, m_Q.end()); // m_Q에서 K 길이만큼 뒤에서 추출
-    sort(m_I.begin(), m_I.end()); // m_I를 오름차순으로 정렬
+    idx_I.reserve(K_pad); // 메모리 확보
+    idx_I = vector<int>(idx_Q.end()-K_pad, idx_Q.end()); // m_Q에서 K 길이만큼 뒤에서 추출
+    sort(idx_I.begin(), idx_I.end()); // m_I를 오름차순으로 정렬
 
-    /*
-    for(auto e : m_I){
-        cout<<e<<" ";
-    }
-    cout<<endl;
+    // vector<int> node_sizes; 
+    int total_nodes = 2*N-1;
+    node_sizes.resize(total_nodes);
+    for(int i = N-1; i < total_nodes; i++){
+        node_sizes[i]=1;
 
-    for(auto e : m_F){
-        cout<<e<<" ";
     }
-    cout<<endl;
-    for(auto e : m_Q){
-        cout<<e<<" ";
+    for(int i = N-2; i>=0; i--){
+        int left = 2*i +1;
+        node_sizes[i]= 2*node_sizes[left];
     }
-        */
-    cout<<endl;
+
     
 }
   
 // encoder
 vector<bool> POLAR::encoder(vector<bool>* msg){
-    assert (msg->size()==m_K);
+    //assert (msg->size()==m_K);
     // m_Q와 m_I 이용해서 information bit 채워준다.
-    vector<bool> u(m_N, 0);
+    vector<bool> u(N, 0);
     
-    for(uint32_t i = 0; i< m_K; i++){
-        u[m_I[i]]=(*msg)[i];
+    for(int i = 0; i< K_pad; i++){
+        u[idx_I[i]]=(*msg)[i];
         //test code cout<<m_I[i]<<endl;
     }
     // no-recursion
     //return polar_encode_no_recur(u);
-
-    // recursion
-    //for(auto e:u){
-    //    cout<<e<<" ";
-    //}
-    //cout<<endl;
     return polar_encode_no_recur(u);
     //return polar_encode_recur(u);
 
@@ -150,8 +204,8 @@ vector<bool> POLAR::encoder(vector<bool>* msg){
 vector<bool> POLAR::sc_decoder(vector<double>* llr){
 
     // Frozen bit map을 구성해야함
-    vector<bool>F_map(m_N, 0);
-    for(auto e:m_F){
+    vector<bool>F_map(N, 0);
+    for(auto e:idx_F){
         F_map[e]=1;
     }
 
@@ -163,8 +217,8 @@ vector<bool> POLAR::sc_decoder(vector<double>* llr){
     sc_node_operations_no_recur(llr, F_map, &u_cap);
 
     // extract the message bits
-    vector<bool> msg_cap; msg_cap.reserve(m_K);
-    for (auto e : m_I){
+    vector<bool> msg_cap; msg_cap.reserve(K_pad);
+    for (auto e : idx_I){
         msg_cap.push_back(u_cap[e]);
     }
     //for(auto e: msg_cap){
@@ -174,7 +228,103 @@ vector<bool> POLAR::sc_decoder(vector<double>* llr){
     return msg_cap;
 }
 // SCL decoder
-vector<bool> POLAR::scl_decoder(vector<double>* llr, vector<bool> crc_g, unsigned num_List){
+
+
+// optimize
+vector<bool> POLAR::scl_decoder_opt(vector<double>& llr, const vector<bool>& crc_polynomial, int nL){
+    // 1. 필요한 constant 값들 지정해준다.
+    /**
+     * A: Length of the codeword except crc bits
+     * N: Code
+     * Frozen Map
+     * total nodes of the decoding tree
+     */
+    // 잘 보이도록 한곳에 모아두기
+    // int len_g = crc_polynomial.size()-1;
+    //int N = llr.size();
+    // 진짜 실화냐...
+    // int A = m_K - len_g;
+    //int K_pad = + len_g;
+    //int K = m_K;
+    int total_nodes = 2*N - 1;
+
+    vector<bool> F_Map(N, 0);
+    // idx_F: Frozen bit의 인덱스들 오름차순으로 저장해둠. 
+    for(auto e:idx_F){
+        F_Map[e] = 1;
+        // cout<<e<<endl;
+    }
+
+    /**
+     * 2. 그리고, SCL_Path 구조체를 선언하여, Candidate SC decoder들을 관리해야한다.
+     * 
+     * 여기서 비효율이 제일 많이 생긴 것 같다. 
+     * 일단 분기 과정에서 복사는 SCL_Path 구조체의 shallow copy를 사용해준다.
+     * 불필요한 메모리 복사 및 초기화 과정을 없애준다.
+     */
+    SCL_Path* path0 = new SCL_Path(total_nodes, N, llr, node_sizes);
+    vector<SCL_Path*> paths = {path0};
+
+    // cout<<"OK?"<<endl;
+    //////////////////////
+    /**
+     * 3. scl_node_operation 함수를 호출하여 scl의 nodal operation을 수행해준다.
+     */
+    // cout<<N<<M<<K<<K_pad<<F<<endl;
+    // cout<<F_Map.size()<<endl;
+    scl_node_operations_opt(N, F_Map, paths, nL);
+
+    // cout<<"OK?"<<endl;
+
+    /**
+     * 4. SCL 결과 나온 애를 바탕으로 final decision을 도출한다
+     */
+        // cout<<"Finish scl node operations"<<endl;
+    // best decoding result 찾기
+    vector<bool> msg_cap(K); vector<bool> temp_cap(K_pad);
+
+    vector<double> PM;
+    for(int i = 0; i< nL; i++){
+        PM.push_back(paths[i]->PM);
+        // cout<<paths[i]->PM<<endl;// test code
+        // cout<<i<<"th PM "<<PM[i]<<endl;
+    }
+    vector<size_t> idx_pm = sort_indexes(PM);
+    // test code
+    // 이 과정 사실 필요없음
+    // for(int i=0; i<nL; i++){
+    //     cout<<idx_pm[i]<<endl;
+    // }
+    int final_idx = idx_pm[0];
+
+    //일단 u_cap_list에서 msg_candi_list 값들을 추출해줌
+    for(int i = 0; i< nL; i++){
+        for(int j = 0; j< K_pad; j++){
+            //cout<<m_I[j]<<endl;
+            temp_cap[j] = paths[idx_pm[i]]->u_cap[idx_I[j]];
+            // cout<<paths[idx_pm[i]]->u_cap[m_I[j]]<<endl;
+        }
+        // crc test 진행
+        if(crc_check_sum(&temp_cap, crc_polynomial)){
+            final_idx = idx_pm[i];
+            //cout<<"Final idx: "<<final_idx<<endl;
+            //cout<<"OK!"<<endl;
+            break;
+        }
+    }
+    // 각각 msg 값에 대한 crc test를 수행한다.
+    // PM값 가장 낮은 놈을 최종 msg_cap으로 출력한다.
+    for(int i = 0; i<K; i++){
+        //cout<<"i: "<<i<<endl;
+        //cout<<m_I[i]<<endl;
+        msg_cap[i] = paths[final_idx]->u_cap[idx_I[i]];
+    }
+    
+    return msg_cap;
+
+}
+
+vector<bool> POLAR::scl_decoder(vector<double>* llr, vector<bool> crc_g, int num_List){
     /**
      * Input
      * 1) llr: 길이는 len_info + crc_len
@@ -204,10 +354,8 @@ vector<bool> POLAR::scl_decoder(vector<double>* llr, vector<bool> crc_g, unsigne
 
     // 근데 이런 포인터 연산 너무 비효율적이다... 어떻게 하면 노드에 효율적으로 접근할까
     // F를 비트맵에 넣어준다
-    int A = m_I.size()-crc_g.size()+1;
-    //cout<<"A: "<<A<<endl;// test code
-    vector<bool> F_Map(m_N, 0);
-    for(auto e:m_F){
+    vector<bool> F_Map(N, 0);
+    for(auto e:idx_F){
         F_Map[e]=1;
     }
 
@@ -254,14 +402,14 @@ vector<bool> POLAR::scl_decoder(vector<double>* llr, vector<bool> crc_g, unsigne
 
     // cout<<"Finish scl node operations"<<endl;
     // best decoding result 찾기
-    vector<bool> msg_cap(m_K); vector<bool> temp_cap(m_K);
+    vector<bool> msg_cap(K_pad); vector<bool> temp_cap(K_pad);
     vector<size_t> idx_pm = sort_indexes(PM);
 
     uint8_t final_idx = idx_pm[0];
     // 일단 u_cap_list에서 msg_candi_list 값들을 추출해줌
     //cout<<num_List<<endl;
-    for(unsigned i = 0; i< num_List; i++){
-        for(unsigned j = 0; j< m_K; j++){
+    for(int i = 0; i< num_List; i++){
+        for(int j = 0; j< K_pad; j++){
             temp_cap[j] = u_cap[idx_pm[i]][j];
         }
         // crc test 진행
@@ -274,10 +422,10 @@ vector<bool> POLAR::scl_decoder(vector<double>* llr, vector<bool> crc_g, unsigne
     // 각각 msg 값에 대한 crc test를 수행한다.
     // PM값 가장 낮은 놈을 최종 msg_cap으로 출력한다.
     //cout<<"Final idx: "<<final_idx<<endl;
-    for(int i = 0; i<A; i++){
+    for(int i = 0; i<K; i++){
         //cout<<"i: "<<i<<endl;
         //cout<<m_I[i]<<endl;
-        msg_cap[i] = u_cap[final_idx][m_I[i]];
+        msg_cap[i] = u_cap[final_idx][idx_I[i]];
     }
     return msg_cap;
 }
@@ -294,15 +442,14 @@ vector<double> POLAR::rate_recovery(vector<double>* in){
 
 // Static member functions that can be used outside the class object
 // Huawei approximation
-vector<unsigned> POLAR::channel_polarization_huawei_approx(unsigned N){
+vector<int> POLAR::rate_profiling_huawei_approx(int N){
     vector<double> W(N, 0);
-    vector<unsigned> seq(N, 0);
-    unsigned n = static_cast<unsigned>(log2(N));
+    vector<int> seq(N, 0);
 
-    for (unsigned j = 0; j < N; j++) {
-        unsigned tmp = j;
+    for (int j = 0; j < N; j++) {
+        int tmp = j;
 
-        for (unsigned k = 0; k < n; k++)
+        for (int k = 0; k < N; k++)
         {
             double bit_val = tmp % 2;
             W[j] += bit_val * pow(2, (k * 0.25));
@@ -312,7 +459,7 @@ vector<unsigned> POLAR::channel_polarization_huawei_approx(unsigned N){
         }
     }
     vector<size_t> sorted_indices = sort_indexes(W);
-    for (size_t i = 0; i < N; i++) {
+    for (int i = 0; i < N; i++) {
         seq[i] = sorted_indices[i];
     }
 
@@ -339,11 +486,11 @@ vector<size_t> POLAR::sort_indexes(const vector<T>& v){
 }
 
 // Arikan (given reliability sequence)
-vector<unsigned> POLAR::channel_polarization_reliability_sequence(unsigned N){
+vector<int> POLAR:: rate_profiling_polar_5G_Standard(int N){
     assert(N<=1024); // 왜냐하면 reliability sequence가 1024까지밖에 정의가 안되어있다.
-    vector<unsigned> result;
+    vector<int> result;
     result.reserve(N);
-    for(size_t i=0; i<reliability_sequence.size(); i++){
+    for(size_t i=0; i< reliability_sequence.size(); i++){
         if(reliability_sequence[i]<N){
             result.push_back(reliability_sequence[i]);
         }
@@ -418,7 +565,7 @@ vector<bool> POLAR::polar_encode_no_recur(vector<bool> u) {
 
 vector<bool> POLAR::sc_node_operations_recur(vector<double>* alpha, const vector<bool>& F, vector<bool>* u_cap)
 {
-    unsigned N = alpha->size();
+    int N = alpha->size();
     vector<bool> beta; beta.reserve(N); // hard decisions for corresponding soft bits
 
     //std::cout << "alpha = [";
@@ -442,7 +589,7 @@ vector<bool> POLAR::sc_node_operations_recur(vector<double>* alpha, const vector
 
         // calculate llr for its left child
         vector<double> alpha_left(N / 2);
-        for (unsigned i = 0; i < N / 2; i++) {
+        for (int i = 0; i < N / 2; i++) {
             alpha_left[i] = 2.0 * atanhf(tanhf(a[i] / 2.0) * tanhf(b[i] / 2.0)); // slower
             //int sign = (1 - 2 * (a[i] * b[i] < 0));
             //alpha_left[i] = (std::min(abs(a[i]), abs(b[i])) * sign); // much faster with ignorable loss
@@ -454,7 +601,7 @@ vector<bool> POLAR::sc_node_operations_recur(vector<double>* alpha, const vector
 
         // calculate llr for its right child
         vector<double> alpha_right(N / 2);
-        for (unsigned i = 0; i < N / 2; i++) {
+        for (int i = 0; i < N / 2; i++) {
             alpha_right[i] = (beta_left[i] == 0) ? b[i] + a[i] : b[i] - a[i];
         }
 
@@ -464,7 +611,7 @@ vector<bool> POLAR::sc_node_operations_recur(vector<double>* alpha, const vector
 
         // combine hard decision from its both children and return to its parent
 
-        for (uint32_t i = 0; i < N / 2; i++) {
+        for (int i = 0; i < N / 2; i++) {
             beta.push_back(beta_left[i] xor beta_right[i]);
         }
         beta.insert(beta.end(), beta_right.begin(), beta_right.end());
@@ -518,7 +665,7 @@ void display(Node* current){
 }
 
 vector<bool> POLAR::sc_node_operations_no_recur(vector<double>* alpha, vector<bool> F, vector<bool>* u_cap) {
-    unsigned N = alpha->size();
+    //int N = alpha->size();
     vector<bool> beta(N, 0);  // 초기화된 beta 벡터
 
     // 1. 트리의 루트 노드 생성
@@ -645,6 +792,149 @@ void node_display(Node_SCL e){
 }
 
 
+
+
+// scl_node_operartions 다시 구현
+void POLAR::scl_node_operations_opt(int N, const vector<bool>& F_Map, vector<SCL_Path*>& paths, int max_nL){
+    /**
+     * 1. DFS를 진행할 Stack을 만들기. 
+     * 2. Leaf node: frozen bits, information bit에 따른 분기 처리
+     * 3. Non-leaf node: SC decoder를 할때랑 별반 다르지 않음
+     */
+    // 0. 필요한 변수들 선언하기
+    int cur_num_list = 1;
+    //int num_node = 2*N-1; // non-leaf: N-1, Leaf: N개
+
+    // 1. Tree traversal을 위한 Stack 구성하기
+    stack<Node_SCL> dfs_stack; // Tree traversal을 수행할 Stack
+    dfs_stack.push({0, 0, N, FirstVisit});
+    while(!dfs_stack.empty()){
+        Node_SCL cur_node = dfs_stack.top(); dfs_stack.pop();
+        int cur_id = cur_node.node_id;
+        int cur_size = cur_node.node_size;
+        
+        // cout << "[DFS] cur_id: " << cur_id
+        // << ", cur_size: " << cur_size
+        // << ", stage: " << cur_node.stage
+        // << ", stack_size: " << dfs_stack.size()
+        // << ", cur_num_list: " << cur_num_list << endl;
+
+        // 1. Leaf nodeb
+        if(cur_size == 1){
+            //cout<<"Here is the leaf node."<<endl;
+            int leaf_id = cur_id - (N-1);
+            // frozen bit
+            if(F_Map[leaf_id]==1){
+                for(int l=0; l<cur_num_list; l++){
+                    SCL_Path& cur_list = (*(paths[l]));
+                    double alpha = cur_list.alpha[cur_id][0];
+                    cur_list.beta[cur_id][0] = 0;
+                    cur_list.u_cap[leaf_id] = 0;
+                    // 핵심. PM 업데이트 해야함
+                    double temp = (alpha<0)? abs(alpha) : 0.0; // 얘를 좀 더 하드웨어 친화적인 코드로 바꿔야한다
+                    cur_list.PM+= temp;
+
+                    // cout<<"Frozen"<<endl; // test code
+                }
+            }
+            // information bit
+            // 여기가 진짜 슈퍼 핵심임
+            // Information bit에서 List의 분기가 진행되어야한다.
+            else{
+                vector<SCL_Path*> new_paths;
+                vector<double> new_PMs;
+                // 일단 분기를 시작한다
+                for(int l=0; l<cur_num_list; l++){
+                    SCL_Path* orig = paths[l];
+                    double alpha = orig->alpha[cur_id][0];
+
+                    // Case 0
+                    SCL_Path* path0 = new SCL_Path(*orig);
+                    path0->beta[cur_id][0]=0;
+                    path0->u_cap[leaf_id] = 0;
+                    path0->PM += (alpha<0)? abs(alpha) : 0.0;
+
+                    new_paths.push_back(path0);
+                    new_PMs.push_back(path0->PM);
+
+                    // Case 1 
+                    SCL_Path* path1 = new SCL_Path(*orig);
+                    path1->beta[cur_id][0]= 1;
+                    path1->u_cap[leaf_id] = 1;
+                    path1->PM += (alpha>0)? abs(alpha) : 0.0;
+                    // cout<<"PM: "<<path1->PM<<endl; // test code
+
+                    new_paths.push_back(path1);
+                    new_PMs.push_back(path1->PM);
+                    // cout<<"Non-Leaf"<<endl; // test code
+                }
+
+                // 기존의 path들 메모리 해제
+                for(int l = 0; l<cur_num_list; l++){
+                    delete paths[l];
+                }
+                paths.clear();
+                // 정렬된 인덱스 얻기 (PM 오름차순)
+                vector<size_t> sorted_idx = sort_indexes(new_PMs);
+
+                // 새로운 path 리스트 구성
+                vector<SCL_Path*> pruned_paths;
+                int new_num_list = min((int)new_paths.size(), max_nL);
+                // cout<<"New num list: "<< new_num_list<<endl;
+                for(int i =0; i<new_num_list; i++){
+                    pruned_paths.push_back(new_paths[sorted_idx[i]]);
+                }
+
+                // 나머지는 해제
+                for(int i = new_num_list; i<(int)new_paths.size(); i++){
+                    delete new_paths[sorted_idx[i]];
+                }
+                // 갱신
+                paths = pruned_paths;
+                cur_num_list = new_num_list;
+                // cout<<"5"<<endl; // test code
+
+            }
+        }
+        // 2. Non-Leaf node
+        else{
+            int half = cur_size/2;
+            // 1. FirstVisit: f function
+            if(cur_node.stage == FirstVisit){
+                for(int l=0; l< cur_num_list; l++){
+                    SCL_Path& cur_list = *(paths[l]);
+                    f(cur_list.alpha[cur_id], cur_list.alpha[2*cur_id+1]);
+                }
+                dfs_stack.push({cur_id, cur_node.depth, cur_node.node_size, AfterLeftDone}); // 자기 자신을 push한다.
+                dfs_stack.push({2*cur_id+1, cur_node.depth+1, half, FirstVisit}); // 그리고나서 왼쪽 자식을 push한다.
+
+            }
+            // 2. AfterLeftDone: g function
+            else if(cur_node.stage == AfterLeftDone){
+                for(int l=0; l< cur_num_list; l++){
+                    SCL_Path& cur_list = *(paths[l]);
+                    g(cur_list.alpha[cur_id], cur_list.beta[2*cur_id+1], cur_list.alpha[2*cur_id+2]);
+                }
+                dfs_stack.push({cur_id, cur_node.depth, cur_node.node_size, AfterRightDone}); // 자기 자신을 push한다.
+                dfs_stack.push({2*cur_id+2, cur_node.depth+1, half, FirstVisit}); // 그리고나서 오른쪽 자식을 push한다.
+            }
+            // 3. AfterRightDone: Hard decision for parent node, Butterfly operation
+            else if(cur_node.stage == AfterRightDone){
+                for(int l=0; l< cur_num_list; l++){
+                    SCL_Path& cur_list = *(paths[l]);
+                    hard_decision(cur_list.beta[cur_id*2+1], cur_list.beta[cur_id*2+2],cur_list.beta[cur_id]);
+                }
+            }
+
+
+        }
+
+    }
+
+}
+
+
+/// 
 void POLAR::scl_node_operations(
     int N,
     const vector<bool>& F_Map,
@@ -660,7 +950,7 @@ void POLAR::scl_node_operations(
     // sort&prune 그리고 leaf node에서의 분기만 잘 구현하면 될듯하다.
     // crc는 밖에서 체크할거라 알바 아니다
     ////////////////////////////////////////////////////////
-    // cout<<"Start.."<<endl;
+ 
     int max_num_List = PM.size(); // 이게 nL인건데... 이게 어디선가 잘못되고있을 수도 있겠다.
     int max_num_List_candi = max_num_List*2; // 2nL
     //cout<<max_num_List<<endl;
@@ -707,7 +997,7 @@ void POLAR::scl_node_operations(
             // cout<<"Leaf"<<endl;
             // 이거 좀 이상한데
             int bit_idx = node.node_id - (N-1);
-            // cout<<bit_idx<<" "; // test code
+            // cout<<"bitidx: "<<bit_idx<<" "; // test code
             //leaf node 기준 비트의 위치를 계산한다 
             // Leaf Node를 처리한다.
 
@@ -878,6 +1168,11 @@ void POLAR::scl_node_operations(
 }
 
 
+
+
+
+///////////////
+
 // core function of SCL: sort and prune sc decoders
 template<typename T>
 void POLAR::sort_and_prune(vector<vector<T>>* V, vector<uint8_t> P){
@@ -972,6 +1267,8 @@ vector<bool> crc_polynomial(const string crc_type){
         return{ 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
     else if (!crc_type.compare("6"))
         return{ 1, 1, 0, 0, 0, 0, 1 };
+    else if (!crc_type.compare("3"))
+        return{ 1, 0, 1, 1 };
     else if (!crc_type.compare("1"))
         return{ 1 };
     else

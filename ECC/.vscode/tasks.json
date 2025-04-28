@@ -1,0 +1,31 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "Build ECC Project",
+            "command": "C:\\msys64\\ucrt64\\bin\\g++.exe",
+            "args": [
+                "-std=c++17",
+                "-g",
+                "-Wall",
+                "-Wextra",
+                "${workspaceFolder}/ecc.cpp",
+                "${workspaceFolder}/polar.cpp",
+                "-o",
+                "${workspaceFolder}/ecc.exe"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "컴파일러: C:\\msys64\\ucrt64\\bin\\g++.exe (ECC 프로젝트 전체 컴파일)"
+        }
+    ]
+}
