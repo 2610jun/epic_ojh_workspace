@@ -324,111 +324,111 @@ vector<bool> POLAR::scl_decoder_opt(vector<double>& llr, const vector<bool>& crc
 
 }
 
-vector<bool> POLAR::scl_decoder(vector<double>* llr, vector<bool> crc_g, int num_List){
-    /**
-     * Input
-     * 1) llr: 길이는 len_info + crc_len
-     * 2) crc_g: 최종적으로  crc_checksum 연산 하려고 필요함
-     * 3) num_List: decoding의 후보들 
-     * 
-     * Output
-     * 
-     * 메모리 (핵심)
-     * 1) soft decision (llr, alpha)
-     * 2) hard decision (beta)
-     * 3) PM
-     * 
-     * Sol) List 구조체를 만들어서, 각각이 메모리를 갖도록 설계하자.
-     * 
-     * 그리고 List 지우고 새로 만들고 그러는 식으로 하면 될듯
-     * 고려해줘야할점
-     * 보면 예제 코드에서는 llr, hard decision, u_cap을 모두 2차원 벡터상에 저장해줌...
-     * 나는 이걸 어떻게 해야할까
-     * 
-     * 
-     * 
-     * 그리고 decoder 상에서 crc 값 토대로 최종적으로 u_cap 선정하는법?
-     * 1. crc 통과하는 decoder 결과 존재하면 그 중에 PM 제일 작은애를 선택
-     * 2. crc 통과 다 못하면, 그냥 PM 제일 낮은 애를 선택
-     */
+// vector<bool> POLAR::scl_decoder(vector<double>* llr, vector<bool> crc_g, int num_List){
+//     /**
+//      * Input
+//      * 1) llr: 길이는 len_info + crc_len
+//      * 2) crc_g: 최종적으로  crc_checksum 연산 하려고 필요함
+//      * 3) num_List: decoding의 후보들 
+//      * 
+//      * Output
+//      * 
+//      * 메모리 (핵심)
+//      * 1) soft decision (llr, alpha)
+//      * 2) hard decision (beta)
+//      * 3) PM
+//      * 
+//      * Sol) List 구조체를 만들어서, 각각이 메모리를 갖도록 설계하자.
+//      * 
+//      * 그리고 List 지우고 새로 만들고 그러는 식으로 하면 될듯
+//      * 고려해줘야할점
+//      * 보면 예제 코드에서는 llr, hard decision, u_cap을 모두 2차원 벡터상에 저장해줌...
+//      * 나는 이걸 어떻게 해야할까
+//      * 
+//      * 
+//      * 
+//      * 그리고 decoder 상에서 crc 값 토대로 최종적으로 u_cap 선정하는법?
+//      * 1. crc 통과하는 decoder 결과 존재하면 그 중에 PM 제일 작은애를 선택
+//      * 2. crc 통과 다 못하면, 그냥 PM 제일 낮은 애를 선택
+//      */
 
-    // 근데 이런 포인터 연산 너무 비효율적이다... 어떻게 하면 노드에 효율적으로 접근할까
-    // F를 비트맵에 넣어준다
-    vector<bool> F_Map(N, 0);
-    for(auto e:idx_F){
-        F_Map[e]=1;
-    }
+//     // 근데 이런 포인터 연산 너무 비효율적이다... 어떻게 하면 노드에 효율적으로 접근할까
+//     // F를 비트맵에 넣어준다
+//     vector<bool> F_Map(N, 0);
+//     for(auto e:idx_F){
+//         F_Map[e]=1;
+//     }
 
-    //vector<vector<bool>> u_cap_List;
+//     //vector<vector<bool>> u_cap_List;
     
-    // parameter
-    int N = llr->size();// codelength
-    int total_nodes = 2 * N - 1;  // 트리 노드 개수...  
+//     // parameter
+//     int N = llr->size();// codelength
+//     int total_nodes = 2 * N - 1;  // 트리 노드 개수...  
 
-    // num_List * total_nodes * N
-    // 많이 비효율적이지만, 일단 해보자
-    vector<vector<vector<double>>> LLR(
-        num_List,
-        vector<vector<double>>(total_nodes, vector<double>(N, 0.0))
-    );
+//     // num_List * total_nodes * N
+//     // 많이 비효율적이지만, 일단 해보자
+//     vector<vector<vector<double>>> LLR(
+//         num_List,
+//         vector<vector<double>>(total_nodes, vector<double>(N, 0.0))
+//     );
 
-    LLR[0][0]=(*llr); // LLR의 경우, 첫 List, 첫 node의 llr값은 llr로 초기화해준다.
+//     LLR[0][0]=(*llr); // LLR의 경우, 첫 List, 첫 node의 llr값은 llr로 초기화해준다.
 
-    vector<vector<vector<bool>>> hard_decision(
-        num_List,
-        vector<vector<bool>>(total_nodes, vector<bool>(N, false))
-    );
+//     vector<vector<vector<bool>>> hard_decision(
+//         num_List,
+//         vector<vector<bool>>(total_nodes, vector<bool>(N, false))
+//     );
 
 
-    // u_cap은 num_List * codelength 크기로 초기화하면
-    vector<vector<bool>> u_cap(num_List, vector<bool>(N,false));
+//     // u_cap은 num_List * codelength 크기로 초기화하면
+//     vector<vector<bool>> u_cap(num_List, vector<bool>(N,false));
 
-    vector<double> PM(num_List, numeric_limits<double>::infinity());
-    PM[0]=0;
+//     vector<double> PM(num_List, numeric_limits<double>::infinity());
+//     PM[0]=0;
 
-    //print_buffer_sizes(LLR, hard_decision, u_cap, PM);
+//     //print_buffer_sizes(LLR, hard_decision, u_cap, PM);
 
-    // cout<<"Start scl node operations"<<endl;
-    // scl operation을 수행한다.
-    //scl_node_operations(Codelength ,F_Map, &LLR, &hard_decision, &PM, &u_cap);
-    scl_node_operations(
-        N,
-        F_Map,
-        LLR,                    // [List][Node][Bit]
-        hard_decision,          // [List][Node][Bit]
-        PM,
-        u_cap                   // 
-    );
+//     // cout<<"Start scl node operations"<<endl;
+//     // scl operation을 수행한다.
+//     //scl_node_operations(Codelength ,F_Map, &LLR, &hard_decision, &PM, &u_cap);
+//     scl_node_operations(
+//         N,
+//         F_Map,
+//         LLR,                    // [List][Node][Bit]
+//         hard_decision,          // [List][Node][Bit]
+//         PM,
+//         u_cap                   // 
+//     );
 
-    // cout<<"Finish scl node operations"<<endl;
-    // best decoding result 찾기
-    vector<bool> msg_cap(K_pad); vector<bool> temp_cap(K_pad);
-    vector<size_t> idx_pm = sort_indexes(PM);
+//     // cout<<"Finish scl node operations"<<endl;
+//     // best decoding result 찾기
+//     vector<bool> msg_cap(K_pad); vector<bool> temp_cap(K_pad);
+//     vector<size_t> idx_pm = sort_indexes(PM);
 
-    uint8_t final_idx = idx_pm[0];
-    // 일단 u_cap_list에서 msg_candi_list 값들을 추출해줌
-    //cout<<num_List<<endl;
-    for(int i = 0; i< num_List; i++){
-        for(int j = 0; j< K_pad; j++){
-            temp_cap[j] = u_cap[idx_pm[i]][j];
-        }
-        // crc test 진행
-        if(crc_check_sum(&temp_cap, crc_g)){
-            final_idx = idx_pm[i];
-            //cout<<"OK!"<<endl;
-            break;
-        }
-    }
-    // 각각 msg 값에 대한 crc test를 수행한다.
-    // PM값 가장 낮은 놈을 최종 msg_cap으로 출력한다.
-    //cout<<"Final idx: "<<final_idx<<endl;
-    for(int i = 0; i<K; i++){
-        //cout<<"i: "<<i<<endl;
-        //cout<<m_I[i]<<endl;
-        msg_cap[i] = u_cap[final_idx][idx_I[i]];
-    }
-    return msg_cap;
-}
+//     uint8_t final_idx = idx_pm[0];
+//     // 일단 u_cap_list에서 msg_candi_list 값들을 추출해줌
+//     //cout<<num_List<<endl;
+//     for(int i = 0; i< num_List; i++){
+//         for(int j = 0; j< K_pad; j++){
+//             temp_cap[j] = u_cap[idx_pm[i]][j];
+//         }
+//         // crc test 진행
+//         if(crc_check_sum(&temp_cap, crc_g)){
+//             final_idx = idx_pm[i];
+//             //cout<<"OK!"<<endl;
+//             break;
+//         }
+//     }
+//     // 각각 msg 값에 대한 crc test를 수행한다.
+//     // PM값 가장 낮은 놈을 최종 msg_cap으로 출력한다.
+//     //cout<<"Final idx: "<<final_idx<<endl;
+//     for(int i = 0; i<K; i++){
+//         //cout<<"i: "<<i<<endl;
+//         //cout<<m_I[i]<<endl;
+//         msg_cap[i] = u_cap[final_idx][idx_I[i]];
+//     }
+//     return msg_cap;
+// }
 // rate matching
 vector<bool> POLAR::rate_matching(vector<bool>* in){
     (void) in;
@@ -934,238 +934,238 @@ void POLAR::scl_node_operations_opt(int N, const vector<bool>& F_Map, vector<SCL
 }
 
 
-/// 
-void POLAR::scl_node_operations(
-    int N,
-    const vector<bool>& F_Map,
-    vector<vector<vector<double>>>& LLR,                    // [List][Node][Bit]
-    vector<vector<vector<bool>>>& hard_decision,           // [List][Node][Bit]
-    vector<double>& PM,
-    vector<vector<bool>>& u_cap_List                // [List][Node][Bit]
-){
+// /// 
+// void POLAR::scl_node_operations(
+//     int N,
+//     const vector<bool>& F_Map,
+//     vector<vector<vector<double>>>& LLR,                    // [List][Node][Bit]
+//     vector<vector<vector<bool>>>& hard_decision,           // [List][Node][Bit]
+//     vector<double>& PM,
+//     vector<vector<bool>>& u_cap_List                // [List][Node][Bit]
+// ){
 
-    // parallel_sc 구조체를 우선 선언해야한다.
-    // 그리고 보니가, leaf node에서 분기하고, 비leaf node에서 num_List만큼 반복해서 병렬적으로 연산 수행하는거 제외하면, SC decoder랑 아예 같음
-    // 그니까 node 순회하는 거는 나중에 바꾸고, 우선 저번에 짠거처럼 node & ptr 기반의 DFS 방식 그대로 가져가자
-    // sort&prune 그리고 leaf node에서의 분기만 잘 구현하면 될듯하다.
-    // crc는 밖에서 체크할거라 알바 아니다
-    ////////////////////////////////////////////////////////
+//     // parallel_sc 구조체를 우선 선언해야한다.
+//     // 그리고 보니가, leaf node에서 분기하고, 비leaf node에서 num_List만큼 반복해서 병렬적으로 연산 수행하는거 제외하면, SC decoder랑 아예 같음
+//     // 그니까 node 순회하는 거는 나중에 바꾸고, 우선 저번에 짠거처럼 node & ptr 기반의 DFS 방식 그대로 가져가자
+//     // sort&prune 그리고 leaf node에서의 분기만 잘 구현하면 될듯하다.
+//     // crc는 밖에서 체크할거라 알바 아니다
+//     ////////////////////////////////////////////////////////
  
-    int max_num_List = PM.size(); // 이게 nL인건데... 이게 어디선가 잘못되고있을 수도 있겠다.
-    int max_num_List_candi = max_num_List*2; // 2nL
-    //cout<<max_num_List<<endl;
-    int num_List = 1;
-    //int num_candidates = 1;
+//     int max_num_List = PM.size(); // 이게 nL인건데... 이게 어디선가 잘못되고있을 수도 있겠다.
+//     int max_num_List_candi = max_num_List*2; // 2nL
+//     //cout<<max_num_List<<endl;
+//     int num_List = 1;
+//     //int num_candidates = 1;
 
-    stack<Node_SCL> dfs_stack;
-    // stack에 첫 node를 집어넣어야 한다.
-    dfs_stack.push({0,0,N, FirstVisit});
+//     stack<Node_SCL> dfs_stack;
+//     // stack에 첫 node를 집어넣어야 한다.
+//     dfs_stack.push({0,0,N, FirstVisit});
 
-    // Buffer
-    vector<vector<bool>> u_cap_buffer(max_num_List*2, vector<bool>(N,false));
-    int total_nodes = 2 * N - 1;  // 트리 노드 개수
+//     // Buffer
+//     vector<vector<bool>> u_cap_buffer(max_num_List*2, vector<bool>(N,false));
+//     int total_nodes = 2 * N - 1;  // 트리 노드 개수
 
-    vector<vector<vector<double>>> LLR_buffer(
-        max_num_List_candi,
-        vector<vector<double>>(total_nodes, vector<double>(N, 0.0))
-    );
+//     vector<vector<vector<double>>> LLR_buffer(
+//         max_num_List_candi,
+//         vector<vector<double>>(total_nodes, vector<double>(N, 0.0))
+//     );
     
-    vector<vector<vector<bool>>> hard_buffer(
-        max_num_List_candi,
-        vector<vector<bool>>(total_nodes, vector<bool>(N, false))
-    );
+//     vector<vector<vector<bool>>> hard_buffer(
+//         max_num_List_candi,
+//         vector<vector<bool>>(total_nodes, vector<bool>(N, false))
+//     );
     
-    // vector<vector<bool>> u_cap_buffer(max_num_List*2, vector<bool>(N,false));
-    vector<double> PM_candidate(max_num_List_candi, numeric_limits<double>::infinity());
+//     // vector<vector<bool>> u_cap_buffer(max_num_List*2, vector<bool>(N,false));
+//     vector<double> PM_candidate(max_num_List_candi, numeric_limits<double>::infinity());
 
-    //print_buffer_sizes(LLR_buffer, hard_buffer, u_cap_buffer, PM_candidate);
-    while(!dfs_stack.empty()){
+//     //print_buffer_sizes(LLR_buffer, hard_buffer, u_cap_buffer, PM_candidate);
+//     while(!dfs_stack.empty()){
 
-        // cout<<dfs_stack.size()<<endl;
-        // 첫 노드 pop-out 하기
-        Node_SCL node = dfs_stack.top(); dfs_stack.pop();
-        // node_display(node);
-        int cur_id = node.node_id;
-        // cout<<cur_id<<"is..."<<endl;
-        // cout << "[DEBUG] cur_id: " << cur_id 
-        // << ", size: " << node.node_size 
-        // << ", stage: " << node.stage 
-        // << ", stack size: " << dfs_stack.size() 
-        // << endl;
-        // 1. Leaf node
-        if(node.node_size == 1){
-            // cout<<"Leaf"<<endl;
-            // 이거 좀 이상한데
-            int bit_idx = node.node_id - (N-1);
-            // cout<<"bitidx: "<<bit_idx<<" "; // test code
-            //leaf node 기준 비트의 위치를 계산한다 
-            // Leaf Node를 처리한다.
+//         // cout<<dfs_stack.size()<<endl;
+//         // 첫 노드 pop-out 하기
+//         Node_SCL node = dfs_stack.top(); dfs_stack.pop();
+//         // node_display(node);
+//         int cur_id = node.node_id;
+//         // cout<<cur_id<<"is..."<<endl;
+//         // cout << "[DEBUG] cur_id: " << cur_id 
+//         // << ", size: " << node.node_size 
+//         // << ", stage: " << node.stage 
+//         // << ", stack size: " << dfs_stack.size() 
+//         // << endl;
+//         // 1. Leaf node
+//         if(node.node_size == 1){
+//             // cout<<"Leaf"<<endl;
+//             // 이거 좀 이상한데
+//             int bit_idx = node.node_id - (N-1);
+//             // cout<<"bitidx: "<<bit_idx<<" "; // test code
+//             //leaf node 기준 비트의 위치를 계산한다 
+//             // Leaf Node를 처리한다.
 
-            // frozen bit
-            if(F_Map[bit_idx]==1){
-                for(int l = 0; l<num_List; l++){
-                    double alpha = LLR[l][cur_id][0]; // Node의 softbit llr 가져오기. 
-                    u_cap_List[l][bit_idx]=0; // hard decision이랑 u_cap_List의 해당값을 업데이트 해줘야함
-                    hard_decision[l][cur_id][0] = 0;
-                    PM[l]+=(alpha<0)? abs(alpha) : 0.0; // 그 다음에 그거 토대로, 만약 llr값이 0보다 작게 나왔다면 (1로 추정되었다면), PM 값에 llr 값을 추가해준다.
-                }
-            }
+//             // frozen bit
+//             if(F_Map[bit_idx]==1){
+//                 for(int l = 0; l<num_List; l++){
+//                     double alpha = LLR[l][cur_id][0]; // Node의 softbit llr 가져오기. 
+//                     u_cap_List[l][bit_idx]=0; // hard decision이랑 u_cap_List의 해당값을 업데이트 해줘야함
+//                     hard_decision[l][cur_id][0] = 0;
+//                     PM[l]+=(alpha<0)? abs(alpha) : 0.0; // 그 다음에 그거 토대로, 만약 llr값이 0보다 작게 나왔다면 (1로 추정되었다면), PM 값에 llr 값을 추가해준다.
+//                 }
+//             }
 
-            // information bits
-            else{
+//             // information bits
+//             else{
 
-                for(int l=0; l<num_List; l++){
-                    //if (std::isinf(PM[l])) continue;  // 이 후보는 무효, 건너뜀
-                    double alpha = LLR[l][cur_id][0];
-                    // 일단 그리고, PM 값이 무한대라면, PM을 초기화해줘야함
-                    // case 0
-                    LLR_buffer[2*l]=LLR[l];
-                    //u_cap_buffer.push_back(u_cap_List[l]);
-                    u_cap_buffer[2*l]=u_cap_List[l];
-                    hard_buffer[2*l]=hard_decision[l];
+//                 for(int l=0; l<num_List; l++){
+//                     //if (std::isinf(PM[l])) continue;  // 이 후보는 무효, 건너뜀
+//                     double alpha = LLR[l][cur_id][0];
+//                     // 일단 그리고, PM 값이 무한대라면, PM을 초기화해줘야함
+//                     // case 0
+//                     LLR_buffer[2*l]=LLR[l];
+//                     //u_cap_buffer.push_back(u_cap_List[l]);
+//                     u_cap_buffer[2*l]=u_cap_List[l];
+//                     hard_buffer[2*l]=hard_decision[l];
 
-                    u_cap_buffer[2*l][bit_idx]=0;
-                    hard_buffer[2*l][cur_id][0]=0;
-                    PM_candidate[2*l]=(PM[l]+((alpha<0)? abs(alpha) : 0.0));
+//                     u_cap_buffer[2*l][bit_idx]=0;
+//                     hard_buffer[2*l][cur_id][0]=0;
+//                     PM_candidate[2*l]=(PM[l]+((alpha<0)? abs(alpha) : 0.0));
 
-                    // case 1
+//                     // case 1
 
-                    LLR_buffer[2*l+1]=LLR[l];
-                    //u_cap_buffer.push_back(u_cap_List[l]);
-                    u_cap_buffer[2*l+1]=u_cap_List[l];
-                    hard_buffer[2*l+1]=hard_decision[l];
+//                     LLR_buffer[2*l+1]=LLR[l];
+//                     //u_cap_buffer.push_back(u_cap_List[l]);
+//                     u_cap_buffer[2*l+1]=u_cap_List[l];
+//                     hard_buffer[2*l+1]=hard_decision[l];
 
-                    u_cap_buffer[2*l+1][bit_idx]=1;
-                    hard_buffer[2*l+1][cur_id][0]=1;
-                    PM_candidate[2*l+1]=(PM[l]+((alpha>0)? abs(alpha) : 0.0));
+//                     u_cap_buffer[2*l+1][bit_idx]=1;
+//                     hard_buffer[2*l+1][cur_id][0]=1;
+//                     PM_candidate[2*l+1]=(PM[l]+((alpha>0)? abs(alpha) : 0.0));
 
-                }
-                // 일단 기존 메모리 clear
-                /*
-                LLR.clear(); u_cap_List.clear(); hard_decision.clear(); PM.clear();
-                // PM 기반으로 인덱스 정렬 후 상위 L개 선택한다.
-                vector<size_t> sorted_idx = sort_indexes(PM_candidate);
-                for(int i = 0; i< num_List; i++){
-                    int idx = sorted_idx[i];
-                    LLR.push_back(LLR_buffer[idx]);
-                    u_cap_List.push_back(u_cap_buffer[idx]);
-                    hard_decision.push_back(hard_buffer[idx]);
-                    PM.push_back(PM_candidate[idx]);
-                }
-                num_List = min(2 * num_List, max_num_List);
-                */
-                // Clear & Select to
-                // cout<<num_candidates <<"is.."<<endl;
-                vector<size_t> sorted_idx = sort_indexes(PM_candidate);
-                int num_candidates = num_List*2;
-                //cout<<"num_candidate: "<<num_candidates<<endl;
-                int new_num_List = min(max_num_List, num_candidates);
+//                 }
+//                 // 일단 기존 메모리 clear
+//                 /*
+//                 LLR.clear(); u_cap_List.clear(); hard_decision.clear(); PM.clear();
+//                 // PM 기반으로 인덱스 정렬 후 상위 L개 선택한다.
+//                 vector<size_t> sorted_idx = sort_indexes(PM_candidate);
+//                 for(int i = 0; i< num_List; i++){
+//                     int idx = sorted_idx[i];
+//                     LLR.push_back(LLR_buffer[idx]);
+//                     u_cap_List.push_back(u_cap_buffer[idx]);
+//                     hard_decision.push_back(hard_buffer[idx]);
+//                     PM.push_back(PM_candidate[idx]);
+//                 }
+//                 num_List = min(2 * num_List, max_num_List);
+//                 */
+//                 // Clear & Select to
+//                 // cout<<num_candidates <<"is.."<<endl;
+//                 vector<size_t> sorted_idx = sort_indexes(PM_candidate);
+//                 int num_candidates = num_List*2;
+//                 //cout<<"num_candidate: "<<num_candidates<<endl;
+//                 int new_num_List = min(max_num_List, num_candidates);
 
 
-                for (int l = 0; l < new_num_List; l++) {
-                    int idx = sorted_idx[l];
-                    LLR[l] = LLR_buffer[idx];
-                    hard_decision[l] = hard_buffer[idx];
-                    u_cap_List[l] = u_cap_buffer[idx];
-                    PM[l] = PM_candidate[idx];
-                }
+//                 for (int l = 0; l < new_num_List; l++) {
+//                     int idx = sorted_idx[l];
+//                     LLR[l] = LLR_buffer[idx];
+//                     hard_decision[l] = hard_buffer[idx];
+//                     u_cap_List[l] = u_cap_buffer[idx];
+//                     PM[l] = PM_candidate[idx];
+//                 }
 
-                //for (int l = new_num_List; l < max_num_List; l++) {
-                //    PM[l] = numeric_limits<double>::infinity();  // 혹은 적절히 초기화
-                //}
+//                 //for (int l = new_num_List; l < max_num_List; l++) {
+//                 //    PM[l] = numeric_limits<double>::infinity();  // 혹은 적절히 초기화
+//                 //}
                 
 
-                // 버퍼 초기화
-                for (int l = 0; l < max_num_List_candi; l++) {
-                    for (int n = 0; n < total_nodes; n++) {
-                        for (int i = 0; i < N; i++) {
-                            LLR_buffer[l][n][i] = 0.0;
-                            hard_buffer[l][n][i]=false;
-                        }
-                    }
-                }
-                for (int l = 0; l < max_num_List_candi; l++) {
-                    fill(u_cap_buffer[l].begin(), u_cap_buffer[l].end(), false);
-                }
-                // PM_candidate 초기화는 별도로 해줘야 안전
-                fill(PM_candidate.begin(), PM_candidate.end(), numeric_limits<double>::infinity());
-                num_List = new_num_List;
-                //////////////////////////////////////////
-            }
-            //cout<<"num_List: "<<num_List<<endl;
-            // test code
-            //for (size_t i = 0; i < PM.size(); i++) {
-            //    cout << "PM[" << i << "]: " << PM[i] << endl;
-            //}
-        }
-        // 2. non-Leaf node
-        // 여기서 지금 뭐가 안되고있다
-        else{
-            // cout<<"Non-leaf"<<endl;
-            // 처음 방문 -> f-function을 수행하고, 왼쪽 자식을 push 한다.
-            // cout<<node.node_size<<endl;
-            int half = node.node_size/2;
+//                 // 버퍼 초기화
+//                 for (int l = 0; l < max_num_List_candi; l++) {
+//                     for (int n = 0; n < total_nodes; n++) {
+//                         for (int i = 0; i < N; i++) {
+//                             LLR_buffer[l][n][i] = 0.0;
+//                             hard_buffer[l][n][i]=false;
+//                         }
+//                     }
+//                 }
+//                 for (int l = 0; l < max_num_List_candi; l++) {
+//                     fill(u_cap_buffer[l].begin(), u_cap_buffer[l].end(), false);
+//                 }
+//                 // PM_candidate 초기화는 별도로 해줘야 안전
+//                 fill(PM_candidate.begin(), PM_candidate.end(), numeric_limits<double>::infinity());
+//                 num_List = new_num_List;
+//                 //////////////////////////////////////////
+//             }
+//             //cout<<"num_List: "<<num_List<<endl;
+//             // test code
+//             //for (size_t i = 0; i < PM.size(); i++) {
+//             //    cout << "PM[" << i << "]: " << PM[i] << endl;
+//             //}
+//         }
+//         // 2. non-Leaf node
+//         // 여기서 지금 뭐가 안되고있다
+//         else{
+//             // cout<<"Non-leaf"<<endl;
+//             // 처음 방문 -> f-function을 수행하고, 왼쪽 자식을 push 한다.
+//             // cout<<node.node_size<<endl;
+//             int half = node.node_size/2;
 
-            if(node.stage == FirstVisit){
-                // cout<<"Hello"<<endl;
-                for(int l = 0; l< num_List; l++){
-                    // LLR[l][2 * cur_id + 1].resize(half);
-                    // Left Child LLR 계산
-                    for (int i = 0; i < half; i++) {
-                        //cout<<half<<endl;
-                        float alpha_left = LLR[l][cur_id][i];
-                        float alpha_right = LLR[l][cur_id][i+half];
-                        // 1. tanh
-                        //float temp = 2.0 * atanh(tanh(alpha_left / 2.0) * tanh(alpha_right / 2.0));  // f-function
+//             if(node.stage == FirstVisit){
+//                 // cout<<"Hello"<<endl;
+//                 for(int l = 0; l< num_List; l++){
+//                     // LLR[l][2 * cur_id + 1].resize(half);
+//                     // Left Child LLR 계산
+//                     for (int i = 0; i < half; i++) {
+//                         //cout<<half<<endl;
+//                         float alpha_left = LLR[l][cur_id][i];
+//                         float alpha_right = LLR[l][cur_id][i+half];
+//                         // 1. tanh
+//                         //float temp = 2.0 * atanh(tanh(alpha_left / 2.0) * tanh(alpha_right / 2.0));  // f-function
 
-                        // 2. min-sum
-                        // int sign = (1 - 2 * ((cur->alpha[i]) * (cur->alpha[i + half]) < 0));
-                        // double temp = (std::min(abs(cur->alpha[i]), abs(cur->alpha[i + half])) * sign); // much faster with ignorable loss
-                        int sign = (1 - 2 * ((alpha_left) * (alpha_right) < 0));
-                        float temp = (std::min(abs(alpha_left), abs(alpha_right)) * sign);
-                        LLR[l][cur_id*2+1][i]=temp;
-                        //cout<<"temp: "<<temp<<" "<<cur->left_child->alpha[i]<<endl;// test code
-                    }
-                }
-                dfs_stack.push({cur_id, node.depth, node.node_size, AfterLeftDone}); // 자기 자신을 push한다.
-                dfs_stack.push({2*cur_id+1, node.depth+1, half, FirstVisit}); // 그리고나서 왼쪽 자식을 push한다.
-            }
-            // 왼쪽 자식 처리 완료 -> g function 을 수행하고 오른쪽 자식을 push한다.
-            else if(node.stage == AfterLeftDone){
-                for(int l = 0; l< num_List; l++){
-                    // LLR[l][2*cur_id+2].resize(half);
-                    // alpha값을 계산한다. ar
-                    for (int i = 0; i < half; i++) {
-                        float right = LLR[l][cur_id][i+half];
-                        float left = LLR[l][cur_id][i];
-                        //float temp = (hard_decision[l][cur_id*2+1][i] == 0) ? right+left : right - left;
-                        float temp = (hard_decision[l][cur_id*2+1][i]==0) ? right + left : right - left;
-                        LLR[l][cur_id*2+2][i]=temp;
-                    }
-                }
+//                         // 2. min-sum
+//                         // int sign = (1 - 2 * ((cur->alpha[i]) * (cur->alpha[i + half]) < 0));
+//                         // double temp = (std::min(abs(cur->alpha[i]), abs(cur->alpha[i + half])) * sign); // much faster with ignorable loss
+//                         int sign = (1 - 2 * ((alpha_left) * (alpha_right) < 0));
+//                         float temp = (std::min(abs(alpha_left), abs(alpha_right)) * sign);
+//                         LLR[l][cur_id*2+1][i]=temp;
+//                         //cout<<"temp: "<<temp<<" "<<cur->left_child->alpha[i]<<endl;// test code
+//                     }
+//                 }
+//                 dfs_stack.push({cur_id, node.depth, node.node_size, AfterLeftDone}); // 자기 자신을 push한다.
+//                 dfs_stack.push({2*cur_id+1, node.depth+1, half, FirstVisit}); // 그리고나서 왼쪽 자식을 push한다.
+//             }
+//             // 왼쪽 자식 처리 완료 -> g function 을 수행하고 오른쪽 자식을 push한다.
+//             else if(node.stage == AfterLeftDone){
+//                 for(int l = 0; l< num_List; l++){
+//                     // LLR[l][2*cur_id+2].resize(half);
+//                     // alpha값을 계산한다. ar
+//                     for (int i = 0; i < half; i++) {
+//                         float right = LLR[l][cur_id][i+half];
+//                         float left = LLR[l][cur_id][i];
+//                         //float temp = (hard_decision[l][cur_id*2+1][i] == 0) ? right+left : right - left;
+//                         float temp = (hard_decision[l][cur_id*2+1][i]==0) ? right + left : right - left;
+//                         LLR[l][cur_id*2+2][i]=temp;
+//                     }
+//                 }
 
-                dfs_stack.push({cur_id, node.depth, node.node_size, AfterRightDone}); // 자기 자신을 push한다.
-                dfs_stack.push({2*cur_id+2, node.depth+1, half, FirstVisit}); // 그리고나서 오른쪽 자식을 push한다.
-            }
-            // 오른쪽까지 끝났으면-> hard decision을 결합하는 butterfly 연산을 수행한다.
-            else if(node.stage == AfterRightDone){
-                for(int l = 0; l< num_List; l++){
-                    // hard_decision[l][cur_id].resize(2*half);
-                    for(int i = 0; i<half; i++){
-                        bool left = hard_decision[l][2*cur_id+1][i];
-                        bool right = hard_decision[l][2*cur_id+2][i];
-                        //cout<<left<<" "<<right<<endl;
-                        bool temp = left ^ right;
-                        hard_decision[l][cur_id][i] = temp;
-                        hard_decision[l][cur_id][i+half] = right;
-                    }
-                } 
-            }
+//                 dfs_stack.push({cur_id, node.depth, node.node_size, AfterRightDone}); // 자기 자신을 push한다.
+//                 dfs_stack.push({2*cur_id+2, node.depth+1, half, FirstVisit}); // 그리고나서 오른쪽 자식을 push한다.
+//             }
+//             // 오른쪽까지 끝났으면-> hard decision을 결합하는 butterfly 연산을 수행한다.
+//             else if(node.stage == AfterRightDone){
+//                 for(int l = 0; l< num_List; l++){
+//                     // hard_decision[l][cur_id].resize(2*half);
+//                     for(int i = 0; i<half; i++){
+//                         bool left = hard_decision[l][2*cur_id+1][i];
+//                         bool right = hard_decision[l][2*cur_id+2][i];
+//                         //cout<<left<<" "<<right<<endl;
+//                         bool temp = left ^ right;
+//                         hard_decision[l][cur_id][i] = temp;
+//                         hard_decision[l][cur_id][i+half] = right;
+//                     }
+//                 } 
+//             }
    
-        }
-    }
-    ////////////////////////////////////////////////////////
-}
+//         }
+//     }
+//     ////////////////////////////////////////////////////////
+// }
 
 
 

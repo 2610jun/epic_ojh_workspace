@@ -138,7 +138,7 @@ public: // public member functions
     // SC decoder
     vector<bool> sc_decoder(vector<double>* llr);
     // SCL decoder
-    vector<bool> scl_decoder(vector<double>* llr, vector<bool> crc_g, int nL);
+    // vector<bool> scl_decoder(vector<double>* llr, vector<bool> crc_g, int nL);
     
     // SCL decoder optimized
     vector<bool> scl_decoder_opt(vector<double>& llr, const vector<bool>& crc_polynomial ,int nL);
@@ -179,14 +179,14 @@ private: // private member functions for encoding and decoding
                                                     vector<bool>* u_cap);
     
     // SCL decode
-    void scl_node_operations(
-        int N,
-        const vector<bool>& F_Map,
-        vector<vector<vector<double>>>& LLR,                   
-        vector<vector<vector<bool>>>& hard_decision,         
-        vector<double>& PM,
-        vector<vector<bool>>& u_cap_List               
-    );
+    // void scl_node_operations(
+    //     int N,
+    //     const vector<bool>& F_Map,
+    //     vector<vector<vector<double>>>& LLR,                   
+    //     vector<vector<vector<bool>>>& hard_decision,         
+    //     vector<double>& PM,
+    //     vector<vector<bool>>& u_cap_List               
+    // );
 
 
     // scl_node_operartions 다시 구현
