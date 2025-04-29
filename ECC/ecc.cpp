@@ -23,8 +23,8 @@ void run_CA_SCL();
 
 int main(){
     cout<<"<Demo start>"<<endl;
-    //run_SC();
-    run_CA_SCL();
+    run_SC();
+    //run_CA_SCL();
     //run_CONV(); 
     //run_PAC();
 }
