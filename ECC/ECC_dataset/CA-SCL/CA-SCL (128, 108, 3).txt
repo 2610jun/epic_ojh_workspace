@@ -1,0 +1,27 @@
+<Demo start>
+
+Now running EbN0: 0.00 dB [1 of 9]
+Elapsed time: 18.7 seconds, # tx blocks: 103, # error blocks:100, BER: 0.3956541840, BLER: 0.9708737864
+Now running EbN0: 0.50 dB [2 of 9]
+Elapsed time: 19.7 seconds, # tx blocks: 108, # error blocks:100, BER: 0.3738095238, BLER: 0.9259259259
+Now running EbN0: 1.00 dB [3 of 9]
+Elapsed time: 23.8 seconds, # tx blocks: 130, # error blocks:100, BER: 0.3109890110, BLER: 0.7692307692
+Now running EbN0: 1.50 dB [4 of 9]
+Elapsed time: 26.7 seconds, # tx blocks: 145, # error blocks:100, BER: 0.2377011494, BLER: 0.6896551724
+Now running EbN0: 2.00 dB [5 of 9]
+Elapsed time: 43.3 seconds, # tx blocks: 236, # error blocks:100, BER: 0.1301049233, BLER: 0.4237288136
+Now running EbN0: 2.50 dB [6 of 9]
+Elapsed time: 81.7 seconds, # tx blocks: 448, # error blocks:100, BER: 0.0770620748, BLER: 0.2232142857
+Now running EbN0: 3.00 dB [7 of 9]
+Elapsed time: 184.7 seconds, # tx blocks: 1007, # error blocks:100, BER: 0.0280418026, BLER: 0.0993048659
+Now running EbN0: 3.50 dB [8 of 9]
+Elapsed time: 532.4 seconds, # tx blocks: 2852, # error blocks:100, BER: 0.0098377079, BLER: 0.0350631136
+Now running EbN0: 4.00 dB [9 of 9]
+Elapsed time: 2012.7 seconds, # tx blocks: 10865, # error blocks:100, BER: 0.0019345649, BLER: 0.0092038656
+Decoding Method: CA-SCL
+CRC bit length: 3
+Modulation:BPSK
+[N,K] = [128,108]
+EbN0_dB = [0 0.5 1 1.5 2 2.5 3 3.5 4 ]
+BER = [0.395654 0.37381 0.310989 0.237701 0.130105 0.0770621 0.0280418 0.00983771 0.00193456 ]
+BLER = [0.970874 0.925926 0.769231 0.689655 0.423729 0.223214 0.0993049 0.0350631 0.00920387 ]
