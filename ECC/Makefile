@@ -1,4 +1,4 @@
-# Makefile
+# Makefile for Mac
 
 CXX = g++
 CXXFLAGS = -std=c++17 -O2

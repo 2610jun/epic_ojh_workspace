@@ -34,18 +34,18 @@ void run_SC(){
      * Change demo parameters here
      * nL, M, K ...
      */
-    uint32_t nL = 1; //number of decoders
+    int nL = 1; //number of decoders
     // 아직 N, M을 구분할 단계는 아닌거같다. 그냥 N,K를 파라미터로 갖도록 하면 될듯
-    //uint32_t M = 4000; //code word length
+    //int M = 4000; //code word length
 
-    //uint32_t N = 1024;
-    //uint32_t K = 512;
-    uint32_t N = 256;
-    uint32_t K = 128;
-    //uint32_t N = 16;
-    //uint32_t K = 8;
+    //int N = 1024;
+    //int K = 512;
+    int N = 256;
+    int K = 128;
+    //int N = 16;
+    //int K = 8;
     double R = (double)K/N;
-    //cout<<"R: "<<R<<endl;
+    int num_List = 1;
 
     
     //double rate = 1/2;
@@ -64,7 +64,7 @@ void run_SC(){
 
     // instantiate a POLAR object
     POLAR polar = POLAR(N,K, crc_len, "Polar 5G standard");
-    //POLAR polar = POLAR(N,K, "Huawei Approx");
+    //POLAR polar = POLAR(N,K, crc_len, "Huawei Approx");
 
     // predeclared functions for random process
     /**
@@ -92,8 +92,30 @@ void run_SC(){
     * Polar code의 경우 BPSK가 보편적인 modulation 방법이다.
     */
 
-    vector<double> EbN0_dB = linspace(0,4,9); // 7 point in 2dB~5dB
-    //vector<double> EbN0_dB = linspace(0,3,7); // 7 point in 2dB~5dB
+    // vector<double> EbN0_dB = linspace(0,4,9); // 7 point in 2dB~5dB
+    // //vector<double> EbN0_dB = linspace(0,3,7); // 7 point in 2dB~5dB
+    // vector<double> EbN0;
+    // vector<double> sigma;
+    // //vector<double> N0;
+    // for (auto e : EbN0_dB){
+    //     double x = pow(10.0, e/10);
+    //     EbN0.push_back(x);
+    //     //cout<<x<<endl;
+    //     sigma.push_back(sqrt(1/(2*R*x)));
+    //     //cout<<sqrt(1/(2*R*x))<<endl;
+    // }
+
+    // parameters about simulation 
+    double linspace_begin = 0;
+    double linspace_end = 3;
+    double linspace_num_point = 7;
+    double linspace_interval = (linspace_end-linspace_begin)/(linspace_num_point-1);
+    //vector<double> EbN0_dB = linspace(0,4,9); // 7 point in 2dB~5dB
+    vector<double> EbN0_dB = linspace(linspace_begin,linspace_end,linspace_num_point); // 7 point in 0dB~3dB
+    int n_max_blks = 100000;
+    int target_frame_err = 10; // for 1024, 512
+    string decoder_name = "SC";
+
     vector<double> EbN0;
     vector<double> sigma;
     //vector<double> N0;
@@ -111,13 +133,33 @@ void run_SC(){
     vector<double> ber(EbN0.size(), 0), bler(EbN0.size(), 0);
     vector<int> n_bit_errs(EbN0.size(), 0), n_blk_errs(EbN0.size(), 0);
 
-    int n_max_blks = 100000;
+
+    // 헤더 출력
+    cout << "==================================================\n";
+    cout << "Eb/N0             : " 
+                                    << linspace_begin << "[dB] ~ " 
+                                    << linspace_end << "[dB], " 
+                                    << linspace_interval << "[dB]\n";
+
+    cout << "Target Frame Error: " << target_frame_err<<"\n";
+    cout << "Max num frame     : " << n_max_blks<<"\n";
+    cout << "N                 : " << N << "\n";
+    cout << "K                 : " << K << "\n";
+    cout << "CRC               : " << crc_len << "\n";
+    cout << "Decoder           : " << decoder_name << "\n";
+    cout << "L                 : " << num_List <<"\n";
+    cout << "==================================================\n\n";
+
+    cout << "|| Eb/N0 ||     BER     ||     BLER    || n_bit_errs || n_blk_errs || elapsed time ||" << endl;
+    cout << "=====================================================================================" << endl;
+
+
 
     // Loop for each EbN0 (SNR)
     for(size_t i = 0; i<EbN0.size(); i++){
         // print progress
         string str = format("\nNow running EbN0: %.2f dB [%d of %d]", EbN0_dB[i], i+1, EbN0.size()); // format for console display.  str은 콘솔 출력 위한 버퍼로 계속 사용할것.
-        cout<<str<<endl;
+        //cout<<str<<endl;
         int print_len = 0; // 추후에 출력할때 지우고 다시 쓰는 동작을 구현하기 위해 필요하다
 
         int n_blks_done = 0;
@@ -178,16 +220,7 @@ void run_SC(){
             for (auto e : r){
                 llr.push_back(2.0 * e / (sigma[i]*sigma[i])); // 여기는 한번 더 체크해보자 
             }
-            // test code
-            //for(auto e : llr){
-            //    cout<<e<<" ";
-            //}
-            //cout<<endl;
-            // test code
-            //for(auto e : llr){
-            //    cout<<e<<" ";
-            //}
-            //cout<<endl;
+
             // Rate recovery (Puncturing)
             // Not yet
             //vector<double> rr_llr = polar.rate_recovery(&llr); 나중에 puncturing 공부하게되면 적용해보자.
@@ -218,41 +251,63 @@ void run_SC(){
             ber[i] = n_bit_errs[i] * 1.0 / (K_pad * n_blks_done);
             bler[i] = n_blk_errs[i] * 1.0 / n_blks_done;
 
-            // print progress for every 10 blocks
-            // flush 사용하여 실시간 업데이트
-            if(n_blks_done % 10 == 0){
-                str = format("Elapsed time: %.1f seconds, # tx blocks: %d, # error blocks:%d, BER: %.10f, BLER: %.10f", (clock()-ts)/(double)CLOCKS_PER_SEC, n_blks_done, n_blk_errs[i], ber[i], bler[i]);
-                cout<<string(print_len, '\b'); //print_len 길이만큼 백스페이스 문자 출력하여 이전에 출력된 문자열 지우기
-                cout<<str<<flush; //새로운 진행상태 출력. flush는 버퍼를 즉시 비워서 출력이 실시간으로 반영되도록 보장해준다.
-                print_len = str.length();// 현재 출력된 문자열의 길이를 print_len에 저장하여, 다음 출력 시 이전 문자열을 정확히 덮어쓰도록 보장해준다.
+            // 실시간 진행상태 출력
+            if (n_blks_done % 2 == 0) {
+                //double elapsed_time = (clock() - ts) / (double)CLOCKS_PER_SEC;
+                str = format("|| %.1f  || %12.5e || %12.5e || %10d || %10d || %7.1f s  ||",
+                             EbN0_dB[i], ber[i], bler[i], n_bit_errs[i], n_blk_errs[i], (clock()-ts)/(double)CLOCKS_PER_SEC);
+                cout << string(print_len, '\b');
+                cout << str << flush;
+                print_len = str.length();
             }
          }
          // print progress when one SNR is finished
-         // 
-         str = format("Elapsed time: %.1f seconds, # tx blocks: %d, # error blocks:%d, BER: %.10f, BLER: %.10f", (clock()-ts)/(double)CLOCKS_PER_SEC, n_blks_done, n_blk_errs[i], ber[i], bler[i]);
-         cout << string(print_len, '\b') << str << flush;
+        str = format("|| %.1f  || %12.5e || %12.5e || %10d || %10d || %7.1f s  ||",
+            EbN0_dB[i], ber[i], bler[i], n_bit_errs[i], n_blk_errs[i], (clock()-ts)/(double)CLOCKS_PER_SEC);
+        cout << string(print_len, '\b') << str << flush << endl;
 
     }
 
-    // print simulation result
-    cout << endl;
-    cout << "Decoding Method: "<<"SC"<<endl;
-    cout << "Modulation:" << "BPSK" << endl;
-    cout << "[N,K] = [" << N << "," << K << "]" << endl;
-    cout << "EbN0_dB = [";
-    for (auto e : EbN0_dB)
-        cout << e << " ";
-    cout << "]" << endl;
+    // 파일 경로 및 이름 지정
+    string folder = "C:\\Users\\epic\\OneDrive - postech.ac.kr\\2025\\Epic\\ECC\\polar\\dataset\\SC\\";
+    string filename = decoder_name + " (" + to_string(N) + ", " + to_string(K) + ").txt";
+    string filepath = folder + filename;
 
-    cout << "BER = [";
-    for (auto e : ber)
-        cout << e << " ";
-    cout << "]" << endl;
+    ofstream fout(filepath);
+    if (!fout.is_open()) {
+        cerr << "Failed to open the file: " << filepath << endl;
+    }
 
-    cout << "BLER = [";
-    for (auto e : bler)
-        cout << e << " ";
-    cout << "]" << endl; 
+    // 헤더 출력
+    fout << "==================================================\n";
+    fout << "Eb/N0             : " 
+                                    << linspace_begin << "[dB] ~ " 
+                                    << linspace_end << "[dB], " 
+                                    << linspace_interval << "[dB]\n";
+
+    fout << "Target Frame Error: " << target_frame_err<<"\n";
+    fout << "Max num frame     : " << n_max_blks<<"\n";
+    fout << "N                 : " << N << "\n";
+    fout << "K                 : " << K << "\n";
+    fout << "CRC               : " << crc_len << "\n";
+    fout << "Decoder           : " << decoder_name << "\n";
+    fout << "L                 : " << num_List <<"\n";
+    fout << "==================================================\n\n";
+
+    // BER 출력
+    fout << "BER: \n";
+    fout << fixed << setprecision(8);
+    for (double b : ber)
+        fout << b << "\n";
+    fout << "\n";
+
+    // FER 출력
+    fout << "FER: \n";
+    for (double f : bler)
+        fout << f << "\n";
+
+    fout.close();
+    cout << "File is uploaded!: " << filepath << endl;
 
 }
 void run_CA_SCL(){
@@ -272,12 +327,10 @@ void run_CA_SCL(){
     double R = (double)K/N;
 
 
-    int target_frame_err = 10; // for 1024, 512
+
 
     // instantiate a POLAR object
     POLAR polar = POLAR(N,K, crc_len,"Polar 5G standard");
-
-    string decoder_name = "CA-SCL";
 
     // test code
     // vector<double> a = {10.1, 200.2, 1.7}; // 결과가 2, 0, 1 나와야함
@@ -291,12 +344,16 @@ void run_CA_SCL(){
     default_random_engine random_engine;
     bernoulli_distribution  bern_dist;
 
+    // parameters about simulation 
     double linspace_begin = 0;
     double linspace_end = 3;
     double linspace_num_point = 7;
     double linspace_interval = (linspace_end-linspace_begin)/(linspace_num_point-1);
     //vector<double> EbN0_dB = linspace(0,4,9); // 7 point in 2dB~5dB
     vector<double> EbN0_dB = linspace(linspace_begin,linspace_end,linspace_num_point); // 7 point in 0dB~3dB
+    int n_max_blks = 100000; // 
+    int target_frame_err = 10; // for 1024, 512
+    string decoder_name = "CA-SCL";
 
     vector<double> EbN0;
     vector<double> sigma;
@@ -312,7 +369,7 @@ void run_CA_SCL(){
     vector<double> ber(EbN0.size(), 0), bler(EbN0.size(), 0);
     vector<int> n_bit_errs(EbN0.size(), 0), n_blk_errs(EbN0.size(), 0);
 
-    int n_max_blks = 100000; // 
+
 
 
 
@@ -453,37 +510,15 @@ void run_CA_SCL(){
 
     }
 
-    // print simulation result
-    /*
-    cout << endl;
-    cout << "Decoding Method: "<<"CA-SCL"<<endl;
-    cout << "CRC bit length: "<< crc_len<<endl;
-    cout << "Modulation:" << "BPSK" << endl;
-    cout << "[N,K] = [" << N << "," << K << "]" << endl;
-    cout << "EbN0_dB = [";
-    for (auto e : EbN0_dB)
-        cout << e << " ";
-    cout << "]" << endl;
-
-    cout << "BER = [";
-    for (auto e : ber)
-        cout << e << " ";
-    cout << "]" << endl;
-
-    cout << "BLER = [";
-    for (auto e : bler)
-        cout << e << " ";
-    cout << "]" << endl; 
-    */
 
     // 파일 경로 및 이름 지정
-    string folder = "C:\\Users\\epic\\OneDrive - postech.ac.kr\\2025\\Epic\\ECC\\polar\\dataset\\";
+    string folder = "C:\\Users\\epic\\OneDrive - postech.ac.kr\\2025\\Epic\\ECC\\polar\\dataset\\CA_SCL\\";
     string filename = decoder_name + " (" + to_string(N) + ", " + to_string(K) + ", "+ to_string(num_List) + ", " + to_string(crc_len) + ").txt";
     string filepath = folder + filename;
 
     ofstream fout(filepath);
     if (!fout.is_open()) {
-        cerr << "파일 열기 실패: " << filepath << endl;
+        cerr << "Failed to open the file: " << filepath << endl;
     }
 
     // 헤더 출력
@@ -515,7 +550,7 @@ void run_CA_SCL(){
         fout << f << "\n";
 
     fout.close();
-    cout << "파일 저장 완료: " << filepath << endl;
+    cout << "File is uploaded!: " << filepath << endl;
 
 }
 
