@@ -28,8 +28,8 @@ CXX = g++
 CXXFLAGS = -std=c++17 -O2
 
 # Files
-TARGET = ecc_demo
-SRCS = ecc.cpp polar.cpp
+TARGET = ecc_final
+SRCS = rs.cpp
 
 # Default target
 all:

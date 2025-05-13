@@ -21,7 +21,7 @@ void run_CA_SCL();
 //void run_CONV();
 //void run_PAC();
 
-int main(&argc, &argv){
+int main(){
     //////////////////////////// MPI INITIALIZE ////////////////////////////////
     // MPI_variables
     int rank;
