@@ -60,14 +60,39 @@ string superscript(int n) {
     return result;
 }
 
-void display_polynomial(const Poly_mod2& poly) {
+// void display_polynomial(const Poly_mod2& poly) {
+//     bool first = true;
+//     int deg = poly.size() - 1;
+
+//     for (int i = 0; i <= deg; ++i) {
+//         if (poly[i]) {
+//             if (!first) cout << " + ";
+            
+//             if (i == 0) {
+//                 cout << "1";
+//             } else if (i == 1) {
+//                 cout << "x";
+//             } else {
+//                 cout << "x" << superscript(i);
+//             }
+//             first = false;
+//         }
+//     }
+
+//     if (first) cout << "0"; // zero polynomial
+//     cout << endl;
+// }
+
+void display_polynomial(const Poly_mod2& poly, const string& name = "p") {
     bool first = true;
     int deg = poly.size() - 1;
+
+    cout << name << "(x) = ";
 
     for (int i = 0; i <= deg; ++i) {
         if (poly[i]) {
             if (!first) cout << " + ";
-            
+
             if (i == 0) {
                 cout << "1";
             } else if (i == 1) {
@@ -84,10 +109,9 @@ void display_polynomial(const Poly_mod2& poly) {
 }
 
 
-void display_polynomial(
-    const Polynomial& poly, 
-    const string& name = "P"
-) {
+
+
+void display_polynomial(const Polynomial& poly, const string& name = "P") {
     bool first = true;
     int deg = poly.coeffs.size();
 
@@ -99,8 +123,11 @@ void display_polynomial(
         if (!first) cout << " + ";
 
         // 계수 출력
-        if (poly.coeffs[i] == 0) cout << "1";
-        else cout << "α^" << poly.coeffs[i];
+        if (poly.coeffs[i] == 0) {
+            cout << "1";
+        } else {
+            cout << "α" << superscript(poly.coeffs[i]);  // 여기가 포인트
+        }
 
         // 차수 출력
         if (i == 1) cout << "·x";
@@ -109,9 +136,10 @@ void display_polynomial(
         first = false;
     }
 
-    if (first) cout << "0"; // 모든 항이 0일 때
+    if (first) cout << "0";
     cout << endl;
 }
+
 
 
 // Generate GF(2^7) using p(x)
@@ -133,7 +161,7 @@ vector<Poly_mod2> GF(
     Poly_mod2 temp(m, 0);
     
     Poly_mod2 p_x_cat(p_x.begin(), p_x.end()-1);
-    // display_polynomial(p_x_cat);
+    display_polynomial(p_x_cat);
     // Loop 1. # of the Field element
     for(int i = 1; i<FIELD_SIZE; i++){
         // 맨 끝 element가 1인지 확인하기
@@ -154,8 +182,8 @@ vector<Poly_mod2> GF(
         gf[i] = buf;
 
         // test code
-        // cout<<i<<"th power's polynomial: ";
-        // display_polynomial(gf[i]);
+        cout<<i<<"th power's polynomial: ";
+        display_polynomial(gf[i]);
     }
     return gf;
 }
@@ -395,7 +423,7 @@ Polynomial encode_RS(
     return codeword;
 }
 
-Polynomial generate_random_vector(int t, int n, int FIELD_SIZE){
+Polynomial generate_random_error(int t, int n, int FIELD_SIZE){
     random_device rd;
     mt19937 gen(rd());
 
@@ -406,13 +434,82 @@ Polynomial generate_random_vector(int t, int n, int FIELD_SIZE){
     
     // 에러 개수 설정
     int num_errs = error_count_dist(gen);
-    cout<<"# of errors: "<< num_errs << endl; // test code
+    // cout<<"# of errors: "<< num_errs << endl; // test code
 
-    // 에러 위치 설정
+    // 에러 위치 설정 (중복 없이 선택해야함)
     set<int> positions;// 중복 허락 안하는, 집합 컨테이너
-    
+    while(positions.size() < num_errs){
+        positions.insert(pos_dist(gen));
+    }
+
     // 에러 coeff 결정하고 최종적으로 에러패턴 만들어내기
+    Polynomial error_poly(n-1); // degree는 n-1
+    for(int pos : positions){
+        int coeff = coeff_dist(gen);
+        error_poly.coeffs[pos] = coeff;
+        error_poly.mask[pos] = true;
+    }
+
+    return error_poly;
+
 }
+
+// r(α^i)와 같은 반복적인 연산에서 필요함
+int evaluate_poly_alpha(
+    const Polynomial& poly,
+    int alpha_power,
+    const vector<int>& zech_table,
+    int FIELD_SIZE
+) {
+    int sum = -1; // α^-inf = 0
+
+    for (int i = 0; i <= poly.degree(); ++i) {
+        if (!poly.mask[i] || poly.coeffs[i] == -1) continue;
+
+        int term = (poly.coeffs[i] + alpha_power * i) % FIELD_SIZE;
+
+        if (sum == -1) {
+            sum = term;
+        } else if (sum == term) {
+            sum = -1; // α^a + α^a = 0
+        } else {
+            int delta = (term - sum + FIELD_SIZE) % FIELD_SIZE;
+            int z = zech_table[delta];
+            if (z == -1) {
+                cerr << "Zech undefined: α^" << sum << " + α^" << term << endl;
+                exit(1);
+            }
+            sum = (sum + z) % FIELD_SIZE;
+        }
+    }
+
+    return sum; // 결과는 α^sum 형태의 지수값
+}
+
+
+Polynomial compute_syndromes(
+    const Polynomial& r,
+    int b,
+    int t,
+    const vector<int>& zech_table,
+    const int FIELD_SIZE
+) {
+    Polynomial syndromes(2 * t - 1); // deg = 2t - 1
+
+    for (int s = 0; s < 2 * t; ++s) {
+        int alpha_eval = (b + s) % FIELD_SIZE;
+        int result = evaluate_poly_alpha(r, alpha_eval, zech_table, FIELD_SIZE);
+
+        if (result != -1) {
+            syndromes.coeffs[s] = result;
+            syndromes.mask[s] = true;
+        }
+    }
+
+    display_polynomial(syndromes, "S");
+    return syndromes;
+}
+
 
 
 
