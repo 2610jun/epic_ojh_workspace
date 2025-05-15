@@ -83,6 +83,17 @@ int main(){
     display_polynomial(sigma, "σ");
     display_polynomial(omega, "ω");
 
+    vector<int> error_pos = chein_search(sigma, zech_table_s, FIELD_SIZE_S);
+
+    Polynomial error_poly = compute_error_values(sigma, omega, error_pos, zech_table_s, FIELD_SIZE_S);
+    Polynomial decoded = correct_errors(r_s, error_poly, zech_table_s, FIELD_SIZE_S);
+
+    cout << "[Corrected Codeword]" << endl;
+    display_polynomial(decoded, "c_hat");
+
+
+
+
     /**
      * 
      * 

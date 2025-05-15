@@ -13,6 +13,17 @@
 using namespace std;
 using Poly_mod2 = vector<bool>;
 
+/**
+ * 여기에 들어가는 각종 유니코드들
+ * Compart: Superscript characters
+ * 
+ * https://www.compart.com/en/unicode/block/U+2070
+ * 
+ * 위 사이트에서 복붙해와서 코드의 가독성을 높였습니다...
+ * 
+ * VSCODE 기준으로 UTF-8 encoder 사용해야 깨지지 않고 잘 보입니다...
+ */
+
 // using GFElement = int; // a^i로 표현됨. (i = 0 ~ i = m-1)
 // using Poly_exp = vector<GFElement>; // GF의 게수를 지수로 표현한 다항식.
 
@@ -60,28 +71,6 @@ string superscript(int n) {
     return result;
 }
 
-// void display_polynomial(const Poly_mod2& poly) {
-//     bool first = true;
-//     int deg = poly.size() - 1;
-
-//     for (int i = 0; i <= deg; ++i) {
-//         if (poly[i]) {
-//             if (!first) cout << " + ";
-            
-//             if (i == 0) {
-//                 cout << "1";
-//             } else if (i == 1) {
-//                 cout << "x";
-//             } else {
-//                 cout << "x" << superscript(i);
-//             }
-//             first = false;
-//         }
-//     }
-
-//     if (first) cout << "0"; // zero polynomial
-//     cout << endl;
-// }
 
 void display_polynomial(const Poly_mod2& poly, const string& name = "p") {
     bool first = true;
@@ -483,7 +472,7 @@ int evaluate_poly_alpha(
         }
     }
 
-    return sum; // 결과는 α^sum 형태의 지수값
+    return sum; // 결과는 α^sum 형태의 지수값, 결과가 -1이면 그냥 0 
 }
 
 
@@ -547,6 +536,83 @@ pair<Polynomial, Polynomial> euclidean_algorithm(
     Polynomial omega = r1; // error evaluator poly
 
     return {sigma, omega};
+}
+
+// 오류 위치 찾기: Chien Search
+vector<int> chein_search(
+    const Polynomial& sigma,
+    const vector<int>& zech_table,
+    int FIELD_SIZE
+){
+    vector<int> error_positions;
+
+    // a^i (i = 0 ~ i = 2^m-2) 다 박아서, w(a^(-i))=0 되는 곳 찾아야함.
+    for(int i=0; i<FIELD_SIZE; i++){
+        int eval_power = (FIELD_SIZE - i) % FIELD_SIZE;
+        int eval = evaluate_poly_alpha(sigma, eval_power, zech_table, FIELD_SIZE);
+        // 0을 만족 -> 근임 -> error location
+        if(eval==-1){
+            error_positions.push_back(i);// i번째 위치에 오류가 있다.
+            cout<<i<<endl;
+        }
+    }
+    return error_positions;
+}
+
+// 오류 크기 계산: Forney's Formula
+Polynomial compute_error_values(
+    const Polynomial& sigma,
+    const Polynomial& omega,
+    const vector<int>& error_positions,
+    const vector<int>& zech_table,
+    int FIELD_SIZE
+) {
+    Polynomial error_poly(FIELD_SIZE - 1);
+
+    // σ'(z): formal derivative (계수 * 차수, characteristic 2 -> even 계수 사라짐)
+    Polynomial sigma_deriv(sigma.degree() - 1);
+    for (int i = 1; i <= sigma.degree(); i += 2) { // characteristic 2 -> 짝수차 계수는 0
+        if (sigma.mask[i]) {
+            sigma_deriv.coeffs[i - 1] = sigma.coeffs[i];
+            sigma_deriv.mask[i - 1] = true;
+        }
+    }
+
+    for (int j : error_positions) {
+        int x_inv = (FIELD_SIZE - j) % FIELD_SIZE;
+
+        int omega_val = evaluate_poly_alpha(omega, x_inv, zech_table, FIELD_SIZE);
+        int sigma_deriv_val = evaluate_poly_alpha(sigma_deriv, x_inv, zech_table, FIELD_SIZE);
+
+        if (sigma_deriv_val == -1) {
+            cerr << "Error: sigma'(α^" << x_inv << ") = 0" << endl;
+            exit(1);
+        }
+
+        // 오류 크기 = -ω(x⁻¹) / σ'(x⁻¹) → characteristic 2에서는 - = 자기 자신
+        int delta = (FIELD_SIZE + omega_val - sigma_deriv_val) % FIELD_SIZE;
+        int z = zech_table[delta];
+        if (z == -1) {
+            cerr << "Zech undefined in Forney's: α^" << omega_val << " / α^" << sigma_deriv_val << endl;
+            exit(1);
+        }
+
+        int error_value = (sigma_deriv_val + z) % FIELD_SIZE;
+        error_poly.coeffs[j] = error_value;
+        error_poly.mask[j] = true;
+    }
+
+    return error_poly;
+}
+
+// 오류 보정: 수신 다항식에서 오류 제거
+Polynomial correct_errors(
+    const Polynomial& received,
+    const Polynomial& error_poly,
+    const vector<int>& zech_table,
+    int FIELD_SIZE
+) {
+    return poly_add(received, error_poly, zech_table, FIELD_SIZE);
 }
 
 
