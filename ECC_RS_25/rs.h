@@ -327,7 +327,7 @@ Polynomial poly_mul_xk(const Polynomial& poly, int k) {
     return result;
 }
 
-std::pair<Polynomial, Polynomial> poly_divmod(
+pair<Polynomial, Polynomial> poly_divmod(
     Polynomial dividend,
     const Polynomial& divisor,
     const std::vector<int>& zech_table,
@@ -510,7 +510,44 @@ Polynomial compute_syndromes(
     return syndromes;
 }
 
+pair<Polynomial, Polynomial> euclidean_algorithm(
+    const Polynomial& S,
+    int t,
+    const vector<int>& zech_table,
+    int FIELD_SIZE
+) {
+    // 초기 다항식들
+    // r_-1 항을 나타내기가 애매하다
+    // 그래서 initial i 를 0,1로 잡고 euclid algorithm 적용해줌
+    Polynomial r0 = Polynomial(2 * t);   // r_0 = z^{2t}
+    r0.coeffs[2 * t] = 0;                // α^0 = 1
+    r0.mask[2 * t] = true;
+    Polynomial t0(0);                    // t0 = 0 (zero poly)
 
+    Polynomial r1 = S;                   // r1 = S(z)
+    Polynomial t1 = Polynomial(0);       // t1 = 1
+    t1.coeffs[0] = 0;
+    t1.mask[0] = true;
+
+
+
+    while (r1.degree() >= t) {
+        auto [q, r2] = poly_divmod(r0, r1, zech_table, FIELD_SIZE);
+        Polynomial t2 = poly_add(t0, poly_mul(q, t1, zech_table, FIELD_SIZE), zech_table, FIELD_SIZE);
+
+        // 갱신
+        r0 = r1;
+        r1 = r2;
+        t0 = t1;
+        t1 = t2;
+    }
+
+    // Polynomial sigma = u1; // error locator poly
+    Polynomial sigma = t1; // error locator poly
+    Polynomial omega = r1; // error evaluator poly
+
+    return {sigma, omega};
+}
 
 
 #endif // 

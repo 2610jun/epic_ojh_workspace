@@ -64,6 +64,7 @@ int main(){
      */
     // test code for syndrome verification
     // textbook 7.6
+    // 과제문제의 검증된 답을 바탕으로 검증하면서 코드 짜보자
     int b_s = 1;
     int t_s = 3;
     Poly_mod2 p_x_s = {1, 0, 1, 0, 0, 1};
@@ -77,10 +78,12 @@ int main(){
     vector<int> zech_table_s = make_zech_table(Galois_S);  // Build Zech table
     Polynomial r_s({2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 21, -1, -1, -1, -1, -1, -1, -1, 7},
                     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1});
-    compute_syndromes(r_s, b_s, t_s, zech_table_s, FIELD_SIZE_S);
+    Polynomial syndrome_s = compute_syndromes(r_s, b_s, t_s, zech_table_s, FIELD_SIZE_S);
+    auto [sigma, omega] = euclidean_algorithm(syndrome_s, t_s, zech_table_s, FIELD_SIZE_S);
+    display_polynomial(sigma, "σ");
+    display_polynomial(omega, "ω");
+
     /**
-     * 
-     * 
      * 
      * 
      * 
