@@ -171,8 +171,8 @@ vector<Poly_mod2> GF(
         gf[i] = buf;
 
         // test code
-        cout<<i<<"th power's polynomial: ";
-        display_polynomial(gf[i]);
+        // cout<<i<<"th power's polynomial: ";
+        // display_polynomial(gf[i]);
     }
     return gf;
 }
@@ -563,13 +563,13 @@ vector<int> chein_search(
 Polynomial compute_error_values(
     const Polynomial& sigma,
     const Polynomial& omega,
-    const vector<int>& error_positions,
+    const vector<int>& error_pos,
     const vector<int>& zech_table,
     int FIELD_SIZE
 ) {
     Polynomial error_poly(FIELD_SIZE - 1);
 
-    // σ'(z): formal derivative (계수 * 차수, characteristic 2 -> even 계수 사라짐)
+    // d/dx(σ(x)): formal derivative (계수 * 차수, characteristic 2 -> even 계수 사라짐)
     Polynomial sigma_deriv(sigma.degree() - 1);
     for (int i = 1; i <= sigma.degree(); i += 2) { // characteristic 2 -> 짝수차 계수는 0
         if (sigma.mask[i]) {
@@ -578,7 +578,7 @@ Polynomial compute_error_values(
         }
     }
 
-    for (int j : error_positions) {
+    for (int j : error_pos) {
         int x_inv = (FIELD_SIZE - j) % FIELD_SIZE;
 
         int omega_val = evaluate_poly_alpha(omega, x_inv, zech_table, FIELD_SIZE);
@@ -590,14 +590,15 @@ Polynomial compute_error_values(
         }
 
         // 오류 크기 = -ω(x⁻¹) / σ'(x⁻¹) → characteristic 2에서는 - = 자기 자신
-        int delta = (FIELD_SIZE + omega_val - sigma_deriv_val) % FIELD_SIZE;
-        int z = zech_table[delta];
-        if (z == -1) {
-            cerr << "Zech undefined in Forney's: α^" << omega_val << " / α^" << sigma_deriv_val << endl;
-            exit(1);
-        }
+        // int delta = (FIELD_SIZE + omega_val - sigma_deriv_val) % FIELD_SIZE;
+        // int z = zech_table[delta];
+        // 이거 아님...
+        // if (z == -1) {
+        //     cerr << "Zech undefined in Forney's: α^" << omega_val << " / α^" << sigma_deriv_val << endl;
+        //     exit(1);
+        // }
 
-        int error_value = (sigma_deriv_val + z) % FIELD_SIZE;
+        int error_value = (omega_val - sigma_deriv_val + FIELD_SIZE) % FIELD_SIZE;
         error_poly.coeffs[j] = error_value;
         error_poly.mask[j] = true;
     }

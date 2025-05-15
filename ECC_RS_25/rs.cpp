@@ -88,6 +88,9 @@ int main(){
     Polynomial error_poly = compute_error_values(sigma, omega, error_pos, zech_table_s, FIELD_SIZE_S);
     Polynomial decoded = correct_errors(r_s, error_poly, zech_table_s, FIELD_SIZE_S);
 
+    cout << "[Error Polynomial]" << endl;
+    display_polynomial(error_poly, "e");
+
     cout << "[Corrected Codeword]" << endl;
     display_polynomial(decoded, "c_hat");
 
