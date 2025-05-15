@@ -365,7 +365,7 @@ void run_CA_SCL(){
         sigma.push_back(sqrt(1/(2*R*x)));
         //cout<<sqrt(1/(2*R*x))<<endl;
     }
-
+    
     vector<double> ber(EbN0.size(), 0), bler(EbN0.size(), 0);
     vector<int> n_bit_errs(EbN0.size(), 0), n_blk_errs(EbN0.size(), 0);
 
